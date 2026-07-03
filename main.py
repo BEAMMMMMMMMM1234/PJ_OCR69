@@ -16,11 +16,21 @@ def build_parser() -> argparse.ArgumentParser:
 def _failed_result(image_path: str, error: str) -> dict[str, object]:
     return {
         "status": "failed",
-        "image_path": image_path,
-        "raw_text": "",
-        "text_regions": [],
-        "regions_count": 0,
-        "error": error,
+        "document_type": "Unknown",
+        "structured_data": {
+            "appointment_date": "ไม่พบ",
+            "appointment_time": "ไม่พบ",
+            "preparation_instruction": "ไม่พบ",
+            "medicine_name": "ไม่พบ",
+            "usage_instruction": "ไม่พบ",
+        },
+        "ocr_evidence": {
+            "image_path": image_path,
+            "raw_text": "",
+            "text_regions": [],
+            "regions_count": 0,
+            "error": error,
+        },
         "classification": {
             "document_type": "Unknown",
             "appointment_score": 0,
@@ -28,6 +38,7 @@ def _failed_result(image_path: str, error: str) -> dict[str, object]:
             "matched_appointment_keywords": [],
             "matched_medicine_keywords": [],
         },
+        "error": error,
     }
 
 

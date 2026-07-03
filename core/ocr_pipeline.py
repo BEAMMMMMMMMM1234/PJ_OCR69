@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from core.field_extractor import FieldExtractor
 from core.document_classifier import DocumentClassifier
 from core.paddle_ocr import PaddleOCRReader
 from core.yolo_detector import YoloDetector
@@ -17,8 +18,10 @@ class OCRPipeline:
         yolo_detector: YoloDetector | None = None,
         ocr_reader: PaddleOCRReader | None = None,
         document_classifier: DocumentClassifier | None = None,
+        field_extractor: FieldExtractor | None = None,
         evidence_dir: Path | None = None,
         classification_dir: Path | None = None,
+        extraction_dir: Path | None = None,
         output_dir: Path | None = None,
     ) -> None:
         self.project_root = PROJECT_ROOT
@@ -30,7 +33,9 @@ class OCRPipeline:
         self.document_classifier = document_classifier or DocumentClassifier(
             evidence_dir=self.classification_dir
         )
+        self.field_extractor = field_extractor or FieldExtractor()
         self.evidence_dir = evidence_dir or (self.project_root / "debug" / "ocr_evidence")
+        self.extraction_dir = extraction_dir or (self.project_root / "debug" / "final_output")
         self.output_dir = output_dir or (self.project_root / "outputs")
 
     def run(self, image_path: str | Path) -> dict[str, Any]:
@@ -42,17 +47,44 @@ class OCRPipeline:
         except FileNotFoundError as exc:
             base_result["status"] = "failed"
             base_result["error"] = str(exc)
-            self._save_outputs(image_path, base_result)
-            return base_result
+            final_result = self._build_result(
+                image_path=image_path,
+                status="failed",
+                raw_text="",
+                text_regions=[],
+                error=str(exc),
+                classification=base_result["classification"],
+                structured_data=base_result["structured_data"],
+            )
+            self._finalize_and_save(image_path, final_result)
+            return final_result
         except Exception as exc:
             base_result["status"] = "failed"
             base_result["error"] = f"YOLO error: {exc}"
-            self._save_outputs(image_path, base_result)
-            return base_result
+            final_result = self._build_result(
+                image_path=image_path,
+                status="failed",
+                raw_text="",
+                text_regions=[],
+                error=str(exc),
+                classification=base_result["classification"],
+                structured_data=base_result["structured_data"],
+            )
+            self._finalize_and_save(image_path, final_result)
+            return final_result
 
         if not detections:
-            self._save_outputs(image_path, base_result)
-            return base_result
+            final_result = self._build_result(
+                image_path=image_path,
+                status="success",
+                raw_text="",
+                text_regions=[],
+                error=None,
+                classification=base_result["classification"],
+                structured_data=base_result["structured_data"],
+            )
+            self._finalize_and_save(image_path, final_result)
+            return final_result
 
         sorted_detections = sorted(
             detections,
@@ -77,13 +109,31 @@ class OCRPipeline:
         except FileNotFoundError as exc:
             base_result["status"] = "failed"
             base_result["error"] = str(exc)
-            self._save_outputs(image_path, base_result)
-            return base_result
+            final_result = self._build_result(
+                image_path=image_path,
+                status="failed",
+                raw_text="",
+                text_regions=[],
+                error=str(exc),
+                classification=base_result["classification"],
+                structured_data=base_result["structured_data"],
+            )
+            self._finalize_and_save(image_path, final_result)
+            return final_result
         except Exception as exc:
             base_result["status"] = "failed"
             base_result["error"] = f"PaddleOCR error: {exc}"
-            self._save_outputs(image_path, base_result)
-            return base_result
+            final_result = self._build_result(
+                image_path=image_path,
+                status="failed",
+                raw_text="",
+                text_regions=[],
+                error=str(exc),
+                classification=base_result["classification"],
+                structured_data=base_result["structured_data"],
+            )
+            self._finalize_and_save(image_path, final_result)
+            return final_result
 
         raw_text = "\n".join(
             region["ocr_text"].strip() for region in text_regions if region["ocr_text"].strip()
@@ -91,19 +141,25 @@ class OCRPipeline:
         ocr_errors = getattr(self.ocr_reader, "last_errors", [])
         error_message = "; ".join(dict.fromkeys(ocr_errors)) if ocr_errors else None
 
-        result = {
-            "status": "success",
-            "image_path": str(image_path),
-            "raw_text": raw_text,
-            "text_regions": text_regions,
-            "regions_count": len(text_regions),
-            "error": error_message,
-        }
-
         classification = self.document_classifier.classify(raw_text, image_path)
-        result["classification"] = classification
+        document_type = classification["document_type"]
+        structured_data = self.field_extractor.extract(
+            document_type=document_type,
+            raw_text=raw_text,
+            text_regions=text_regions,
+        )
 
-        self._save_outputs(image_path, result)
+        result = self._build_result(
+            image_path=image_path,
+            status="success",
+            raw_text=raw_text,
+            text_regions=text_regions,
+            error=error_message,
+            classification=classification,
+            structured_data=structured_data,
+        )
+
+        self._finalize_and_save(image_path, result)
         return result
 
     def _empty_result(self, image_path: Path) -> dict[str, Any]:
@@ -121,15 +177,54 @@ class OCRPipeline:
                 "matched_appointment_keywords": [],
                 "matched_medicine_keywords": [],
             },
+            "structured_data": {
+                "appointment_date": "ไม่พบ",
+                "appointment_time": "ไม่พบ",
+                "preparation_instruction": "ไม่พบ",
+                "medicine_name": "ไม่พบ",
+                "usage_instruction": "ไม่พบ",
+            },
         }
 
-    def _save_outputs(self, image_path: Path, result: dict[str, Any]) -> None:
+    def _build_result(
+        self,
+        image_path: Path,
+        status: str,
+        raw_text: str,
+        text_regions: list[dict[str, Any]],
+        error: str | None,
+        classification: dict[str, Any],
+        structured_data: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "status": status,
+            "document_type": classification.get("document_type", "Unknown"),
+            "structured_data": structured_data,
+            "ocr_evidence": {
+                "image_path": str(image_path),
+                "raw_text": raw_text,
+                "text_regions": text_regions,
+                "regions_count": len(text_regions),
+                "error": error,
+            },
+            "classification": classification,
+            "error": error,
+        }
+
+    def _finalize_and_save(
+        self,
+        image_path: Path,
+        result: dict[str, Any],
+    ) -> None:
         self.evidence_dir.mkdir(parents=True, exist_ok=True)
+        self.extraction_dir.mkdir(parents=True, exist_ok=True)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         evidence_path = self.evidence_dir / f"{image_path.stem}_ocr.json"
+        extraction_path = self.extraction_dir / f"{image_path.stem}_extracted.json"
         output_path = self.output_dir / "result.json"
 
-        evidence_payload = json.dumps(result, ensure_ascii=False, indent=2)
+        evidence_payload = json.dumps(result.get("ocr_evidence", result), ensure_ascii=False, indent=2)
         evidence_path.write_text(evidence_payload, encoding="utf-8")
-        output_path.write_text(evidence_payload, encoding="utf-8")
+        extraction_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+        output_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
