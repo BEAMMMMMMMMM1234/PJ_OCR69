@@ -24,6 +24,13 @@ def _failed_result(image_path: str, error: str) -> dict[str, object]:
             "medicine_name": "ไม่พบ",
             "usage_instruction": "ไม่พบ",
         },
+        "validated_data": {
+            "appointment_date": "ไม่พบ",
+            "appointment_time": "ไม่พบ",
+            "preparation_instruction": "ไม่พบ",
+            "medicine_name": "ไม่พบ",
+            "usage_instruction": "ไม่พบ",
+        },
         "ocr_evidence": {
             "image_path": image_path,
             "raw_text": "",

@@ -7,6 +7,7 @@ from typing import Any
 from core.field_extractor import FieldExtractor
 from core.document_classifier import DocumentClassifier
 from core.paddle_ocr import PaddleOCRReader
+from core.validator import DataValidator
 from core.yolo_detector import YoloDetector
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -19,9 +20,11 @@ class OCRPipeline:
         ocr_reader: PaddleOCRReader | None = None,
         document_classifier: DocumentClassifier | None = None,
         field_extractor: FieldExtractor | None = None,
+        validator: DataValidator | None = None,
         evidence_dir: Path | None = None,
         classification_dir: Path | None = None,
         extraction_dir: Path | None = None,
+        validated_dir: Path | None = None,
         output_dir: Path | None = None,
     ) -> None:
         self.project_root = PROJECT_ROOT
@@ -34,8 +37,10 @@ class OCRPipeline:
             evidence_dir=self.classification_dir
         )
         self.field_extractor = field_extractor or FieldExtractor()
+        self.validator = validator or DataValidator()
         self.evidence_dir = evidence_dir or (self.project_root / "debug" / "ocr_evidence")
         self.extraction_dir = extraction_dir or (self.project_root / "debug" / "final_output")
+        self.validated_dir = validated_dir or (self.project_root / "debug" / "final_output")
         self.output_dir = output_dir or (self.project_root / "outputs")
 
     def run(self, image_path: str | Path) -> dict[str, Any]:
@@ -55,6 +60,7 @@ class OCRPipeline:
                 error=str(exc),
                 classification=base_result["classification"],
                 structured_data=base_result["structured_data"],
+                validated_data=base_result["structured_data"],
             )
             self._finalize_and_save(image_path, final_result)
             return final_result
@@ -69,6 +75,7 @@ class OCRPipeline:
                 error=str(exc),
                 classification=base_result["classification"],
                 structured_data=base_result["structured_data"],
+                validated_data=base_result["structured_data"],
             )
             self._finalize_and_save(image_path, final_result)
             return final_result
@@ -82,6 +89,7 @@ class OCRPipeline:
                 error=None,
                 classification=base_result["classification"],
                 structured_data=base_result["structured_data"],
+                validated_data=base_result["structured_data"],
             )
             self._finalize_and_save(image_path, final_result)
             return final_result
@@ -117,6 +125,7 @@ class OCRPipeline:
                 error=str(exc),
                 classification=base_result["classification"],
                 structured_data=base_result["structured_data"],
+                validated_data=base_result["structured_data"],
             )
             self._finalize_and_save(image_path, final_result)
             return final_result
@@ -131,6 +140,7 @@ class OCRPipeline:
                 error=str(exc),
                 classification=base_result["classification"],
                 structured_data=base_result["structured_data"],
+                validated_data=base_result["structured_data"],
             )
             self._finalize_and_save(image_path, final_result)
             return final_result
@@ -148,6 +158,7 @@ class OCRPipeline:
             raw_text=raw_text,
             text_regions=text_regions,
         )
+        validated_data = self.validator.validate(document_type, structured_data)
 
         result = self._build_result(
             image_path=image_path,
@@ -157,6 +168,7 @@ class OCRPipeline:
             error=error_message,
             classification=classification,
             structured_data=structured_data,
+            validated_data=validated_data,
         )
 
         self._finalize_and_save(image_path, result)
@@ -184,6 +196,13 @@ class OCRPipeline:
                 "medicine_name": "ไม่พบ",
                 "usage_instruction": "ไม่พบ",
             },
+            "validated_data": {
+                "appointment_date": "ไม่พบ",
+                "appointment_time": "ไม่พบ",
+                "preparation_instruction": "ไม่พบ",
+                "medicine_name": "ไม่พบ",
+                "usage_instruction": "ไม่พบ",
+            },
         }
 
     def _build_result(
@@ -195,11 +214,13 @@ class OCRPipeline:
         error: str | None,
         classification: dict[str, Any],
         structured_data: dict[str, Any],
+        validated_data: dict[str, Any],
     ) -> dict[str, Any]:
         return {
             "status": status,
             "document_type": classification.get("document_type", "Unknown"),
             "structured_data": structured_data,
+            "validated_data": validated_data,
             "ocr_evidence": {
                 "image_path": str(image_path),
                 "raw_text": raw_text,
@@ -218,13 +239,16 @@ class OCRPipeline:
     ) -> None:
         self.evidence_dir.mkdir(parents=True, exist_ok=True)
         self.extraction_dir.mkdir(parents=True, exist_ok=True)
+        self.validated_dir.mkdir(parents=True, exist_ok=True)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         evidence_path = self.evidence_dir / f"{image_path.stem}_ocr.json"
         extraction_path = self.extraction_dir / f"{image_path.stem}_extracted.json"
+        validated_path = self.validated_dir / f"{image_path.stem}_validated.json"
         output_path = self.output_dir / "result.json"
 
         evidence_payload = json.dumps(result.get("ocr_evidence", result), ensure_ascii=False, indent=2)
         evidence_path.write_text(evidence_payload, encoding="utf-8")
         extraction_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+        validated_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
         output_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
