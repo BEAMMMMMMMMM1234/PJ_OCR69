@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from core.document_classifier import DocumentClassifier
 from core.paddle_ocr import PaddleOCRReader
 from core.yolo_detector import YoloDetector
 
@@ -15,12 +16,20 @@ class OCRPipeline:
         self,
         yolo_detector: YoloDetector | None = None,
         ocr_reader: PaddleOCRReader | None = None,
+        document_classifier: DocumentClassifier | None = None,
         evidence_dir: Path | None = None,
+        classification_dir: Path | None = None,
         output_dir: Path | None = None,
     ) -> None:
         self.project_root = PROJECT_ROOT
         self.yolo_detector = yolo_detector or YoloDetector()
         self.ocr_reader = ocr_reader or PaddleOCRReader()
+        self.classification_dir = classification_dir or (
+            self.project_root / "debug" / "classification"
+        )
+        self.document_classifier = document_classifier or DocumentClassifier(
+            evidence_dir=self.classification_dir
+        )
         self.evidence_dir = evidence_dir or (self.project_root / "debug" / "ocr_evidence")
         self.output_dir = output_dir or (self.project_root / "outputs")
 
@@ -91,6 +100,9 @@ class OCRPipeline:
             "error": error_message,
         }
 
+        classification = self.document_classifier.classify(raw_text, image_path)
+        result["classification"] = classification
+
         self._save_outputs(image_path, result)
         return result
 
@@ -102,6 +114,13 @@ class OCRPipeline:
             "text_regions": [],
             "regions_count": 0,
             "error": None,
+            "classification": {
+                "document_type": "Unknown",
+                "appointment_score": 0,
+                "medicine_score": 0,
+                "matched_appointment_keywords": [],
+                "matched_medicine_keywords": [],
+            },
         }
 
     def _save_outputs(self, image_path: Path, result: dict[str, Any]) -> None:

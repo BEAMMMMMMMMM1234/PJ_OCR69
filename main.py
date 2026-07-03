@@ -13,6 +13,24 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _failed_result(image_path: str, error: str) -> dict[str, object]:
+    return {
+        "status": "failed",
+        "image_path": image_path,
+        "raw_text": "",
+        "text_regions": [],
+        "regions_count": 0,
+        "error": error,
+        "classification": {
+            "document_type": "Unknown",
+            "appointment_score": 0,
+            "medicine_score": 0,
+            "matched_appointment_keywords": [],
+            "matched_medicine_keywords": [],
+        },
+    }
+
+
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
@@ -21,23 +39,9 @@ def main() -> int:
         pipeline = OCRPipeline()
         result = pipeline.run(Path(args.image_path))
     except FileNotFoundError as exc:
-        result = {
-            "status": "failed",
-            "image_path": args.image_path,
-            "raw_text": "",
-            "text_regions": [],
-            "regions_count": 0,
-            "error": str(exc),
-        }
+        result = _failed_result(args.image_path, str(exc))
     except Exception as exc:
-        result = {
-            "status": "failed",
-            "image_path": args.image_path,
-            "raw_text": "",
-            "text_regions": [],
-            "regions_count": 0,
-            "error": str(exc),
-        }
+        result = _failed_result(args.image_path, str(exc))
 
     output_path = Path(__file__).resolve().parent / "outputs" / "result.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
