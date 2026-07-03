@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from extractors.appointment_extractor import AppointmentExtractor
@@ -18,24 +17,26 @@ class FieldExtractor:
         raw_text: str,
         text_regions: list[dict[str, Any]],
     ) -> dict[str, str]:
-        structured_data = self._empty_structured_data()
-
         if document_type == "Appointment":
-            structured_data.update(
+            return self._appointment_schema(
                 self.appointment_extractor.extract(raw_text, text_regions)
             )
         elif document_type == "MedicineLabel":
-            structured_data.update(
+            return self._medicine_schema(
                 self.medicine_extractor.extract(raw_text, text_regions)
             )
 
-        return structured_data
+        return {}
 
-    def _empty_structured_data(self) -> dict[str, str]:
+    def _appointment_schema(self, data: dict[str, str]) -> dict[str, str]:
         return {
-            "appointment_date": "ไม่พบ",
-            "appointment_time": "ไม่พบ",
-            "preparation_instruction": "ไม่พบ",
-            "medicine_name": "ไม่พบ",
-            "usage_instruction": "ไม่พบ",
+            "appointment_date": data.get("appointment_date", "ไม่พบ"),
+            "appointment_time": data.get("appointment_time", "ไม่พบ"),
+            "preparation_instruction": data.get("preparation_instruction", "ไม่พบ"),
+        }
+
+    def _medicine_schema(self, data: dict[str, str]) -> dict[str, str]:
+        return {
+            "medicine_name": data.get("medicine_name", "ไม่พบ"),
+            "usage_instruction": data.get("usage_instruction", "ไม่พบ"),
         }

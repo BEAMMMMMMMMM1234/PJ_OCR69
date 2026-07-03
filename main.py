@@ -17,20 +17,9 @@ def _failed_result(image_path: str, error: str) -> dict[str, object]:
     return {
         "status": "failed",
         "document_type": "Unknown",
-        "structured_data": {
-            "appointment_date": "ไม่พบ",
-            "appointment_time": "ไม่พบ",
-            "preparation_instruction": "ไม่พบ",
-            "medicine_name": "ไม่พบ",
-            "usage_instruction": "ไม่พบ",
-        },
-        "validated_data": {
-            "appointment_date": "ไม่พบ",
-            "appointment_time": "ไม่พบ",
-            "preparation_instruction": "ไม่พบ",
-            "medicine_name": "ไม่พบ",
-            "usage_instruction": "ไม่พบ",
-        },
+        "structured_data": {},
+        "validated_data": {},
+        "final_data": {},
         "ocr_evidence": {
             "image_path": image_path,
             "raw_text": "",

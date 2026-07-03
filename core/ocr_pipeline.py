@@ -6,6 +6,7 @@ from typing import Any
 
 from core.field_extractor import FieldExtractor
 from core.document_classifier import DocumentClassifier
+from core.gemma_formatter import GemmaFormatter
 from core.paddle_ocr import PaddleOCRReader
 from core.validator import DataValidator
 from core.yolo_detector import YoloDetector
@@ -21,10 +22,12 @@ class OCRPipeline:
         document_classifier: DocumentClassifier | None = None,
         field_extractor: FieldExtractor | None = None,
         validator: DataValidator | None = None,
+        gemma_formatter: GemmaFormatter | None = None,
         evidence_dir: Path | None = None,
         classification_dir: Path | None = None,
         extraction_dir: Path | None = None,
         validated_dir: Path | None = None,
+        final_dir: Path | None = None,
         output_dir: Path | None = None,
     ) -> None:
         self.project_root = PROJECT_ROOT
@@ -38,9 +41,11 @@ class OCRPipeline:
         )
         self.field_extractor = field_extractor or FieldExtractor()
         self.validator = validator or DataValidator()
+        self.gemma_formatter = gemma_formatter or GemmaFormatter()
         self.evidence_dir = evidence_dir or (self.project_root / "debug" / "ocr_evidence")
         self.extraction_dir = extraction_dir or (self.project_root / "debug" / "final_output")
         self.validated_dir = validated_dir or (self.project_root / "debug" / "final_output")
+        self.final_dir = final_dir or (self.project_root / "debug" / "final_output")
         self.output_dir = output_dir or (self.project_root / "outputs")
 
     def run(self, image_path: str | Path) -> dict[str, Any]:
@@ -61,6 +66,7 @@ class OCRPipeline:
                 classification=base_result["classification"],
                 structured_data=base_result["structured_data"],
                 validated_data=base_result["structured_data"],
+                final_data={},
             )
             self._finalize_and_save(image_path, final_result)
             return final_result
@@ -76,6 +82,7 @@ class OCRPipeline:
                 classification=base_result["classification"],
                 structured_data=base_result["structured_data"],
                 validated_data=base_result["structured_data"],
+                final_data={},
             )
             self._finalize_and_save(image_path, final_result)
             return final_result
@@ -90,6 +97,7 @@ class OCRPipeline:
                 classification=base_result["classification"],
                 structured_data=base_result["structured_data"],
                 validated_data=base_result["structured_data"],
+                final_data={},
             )
             self._finalize_and_save(image_path, final_result)
             return final_result
@@ -126,6 +134,7 @@ class OCRPipeline:
                 classification=base_result["classification"],
                 structured_data=base_result["structured_data"],
                 validated_data=base_result["structured_data"],
+                final_data={},
             )
             self._finalize_and_save(image_path, final_result)
             return final_result
@@ -141,6 +150,7 @@ class OCRPipeline:
                 classification=base_result["classification"],
                 structured_data=base_result["structured_data"],
                 validated_data=base_result["structured_data"],
+                final_data={},
             )
             self._finalize_and_save(image_path, final_result)
             return final_result
@@ -159,6 +169,7 @@ class OCRPipeline:
             text_regions=text_regions,
         )
         validated_data = self.validator.validate(document_type, structured_data)
+        final_data = self.gemma_formatter.format(document_type, validated_data)
 
         result = self._build_result(
             image_path=image_path,
@@ -169,6 +180,7 @@ class OCRPipeline:
             classification=classification,
             structured_data=structured_data,
             validated_data=validated_data,
+            final_data=final_data,
         )
 
         self._finalize_and_save(image_path, result)
@@ -189,20 +201,9 @@ class OCRPipeline:
                 "matched_appointment_keywords": [],
                 "matched_medicine_keywords": [],
             },
-            "structured_data": {
-                "appointment_date": "ไม่พบ",
-                "appointment_time": "ไม่พบ",
-                "preparation_instruction": "ไม่พบ",
-                "medicine_name": "ไม่พบ",
-                "usage_instruction": "ไม่พบ",
-            },
-            "validated_data": {
-                "appointment_date": "ไม่พบ",
-                "appointment_time": "ไม่พบ",
-                "preparation_instruction": "ไม่พบ",
-                "medicine_name": "ไม่พบ",
-                "usage_instruction": "ไม่พบ",
-            },
+            "structured_data": {},
+            "validated_data": {},
+            "final_data": {},
         }
 
     def _build_result(
@@ -215,12 +216,14 @@ class OCRPipeline:
         classification: dict[str, Any],
         structured_data: dict[str, Any],
         validated_data: dict[str, Any],
+        final_data: dict[str, Any],
     ) -> dict[str, Any]:
         return {
             "status": status,
             "document_type": classification.get("document_type", "Unknown"),
             "structured_data": structured_data,
             "validated_data": validated_data,
+            "final_data": final_data,
             "ocr_evidence": {
                 "image_path": str(image_path),
                 "raw_text": raw_text,
@@ -240,15 +243,18 @@ class OCRPipeline:
         self.evidence_dir.mkdir(parents=True, exist_ok=True)
         self.extraction_dir.mkdir(parents=True, exist_ok=True)
         self.validated_dir.mkdir(parents=True, exist_ok=True)
+        self.final_dir.mkdir(parents=True, exist_ok=True)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         evidence_path = self.evidence_dir / f"{image_path.stem}_ocr.json"
         extraction_path = self.extraction_dir / f"{image_path.stem}_extracted.json"
         validated_path = self.validated_dir / f"{image_path.stem}_validated.json"
+        final_path = self.final_dir / f"{image_path.stem}_final.json"
         output_path = self.output_dir / "result.json"
 
         evidence_payload = json.dumps(result.get("ocr_evidence", result), ensure_ascii=False, indent=2)
         evidence_path.write_text(evidence_payload, encoding="utf-8")
         extraction_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
         validated_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+        final_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
         output_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")

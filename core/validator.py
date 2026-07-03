@@ -1,11 +1,7 @@
 from __future__ import annotations
 
 import re
-from copy import deepcopy
-from pathlib import Path
 from typing import Any
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 class DataValidator:
@@ -14,30 +10,33 @@ class DataValidator:
         document_type: str,
         structured_data: dict[str, Any],
     ) -> dict[str, Any]:
-        validated_data = deepcopy(structured_data)
-
-        if not validated_data:
-            return validated_data
-
         if document_type == "Appointment":
-            validated_data["appointment_date"] = self._normalize_text(
-                validated_data.get("appointment_date", "ไม่พบ")
-            )
-            validated_data["appointment_time"] = self._normalize_text(
-                validated_data.get("appointment_time", "ไม่พบ")
-            )
-            validated_data["preparation_instruction"] = self._normalize_appointment_instruction(
-                validated_data.get("preparation_instruction", "ไม่พบ")
-            )
+            return self._validate_appointment(structured_data)
         elif document_type == "MedicineLabel":
-            validated_data["medicine_name"] = self._normalize_text(
-                validated_data.get("medicine_name", "ไม่พบ")
-            )
-            validated_data["usage_instruction"] = self._normalize_medicine_instruction(
-                validated_data.get("usage_instruction", "ไม่พบ")
-            )
+            return self._validate_medicine(structured_data)
 
-        return validated_data
+        return {}
+
+    def _validate_appointment(self, structured_data: dict[str, Any]) -> dict[str, str]:
+        return {
+            "appointment_date": self._normalize_text(
+                structured_data.get("appointment_date", "ไม่พบ")
+            ),
+            "appointment_time": self._normalize_text(
+                structured_data.get("appointment_time", "ไม่พบ")
+            ),
+            "preparation_instruction": self._normalize_appointment_instruction(
+                structured_data.get("preparation_instruction", "ไม่พบ")
+            ),
+        }
+
+    def _validate_medicine(self, structured_data: dict[str, Any]) -> dict[str, str]:
+        return {
+            "medicine_name": self._normalize_text(structured_data.get("medicine_name", "ไม่พบ")),
+            "usage_instruction": self._normalize_medicine_instruction(
+                structured_data.get("usage_instruction", "ไม่พบ")
+            ),
+        }
 
     def _normalize_text(self, value: str) -> str:
         if value == "ไม่พบ":
