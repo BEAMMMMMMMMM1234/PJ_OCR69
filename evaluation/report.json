@@ -1,0 +1,32 @@
+{
+  "cer": {
+    "reference_length": 856,
+    "predicted_length": 856,
+    "edit_distance": 0,
+    "cer": 0.0
+  },
+  "field_accuracy": {
+    "total_fields": 3,
+    "correct_fields": 3,
+    "accuracy": 1.0,
+    "per_field": {
+      "appointment_date": {
+        "ground_truth": "7 สิงหาคม 2569",
+        "prediction": "7 สิงหาคม 2569",
+        "correct": true
+      },
+      "appointment_time": {
+        "ground_truth": "08:30 น",
+        "prediction": "08:30 น",
+        "correct": true
+      },
+      "preparation_instruction": {
+        "ground_truth": "งดอาหารและงดน้ำ หลังเวลา 24.00 น. (หลังเที่ยงคืน)",
+        "prediction": "งดอาหารและงดน้ำ หลังเวลา 24.00 น. (หลังเที่ยงคืน)",
+        "correct": true
+      }
+    }
+  },
+  "ground_truth_path": "outputs/result.json",
+  "prediction_path": "outputs/result.json"
+}

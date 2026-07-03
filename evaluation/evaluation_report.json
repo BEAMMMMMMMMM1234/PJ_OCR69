@@ -1,0 +1,52 @@
+{
+  "summary": {
+    "total_samples": 2,
+    "average_cer": 0.0,
+    "average_field_accuracy": 1.0
+  },
+  "samples": [
+    {
+      "image_path": "data/test_images/A1.jpg",
+      "document_type": "Appointment",
+      "predicted_document_type": "Appointment",
+      "cer": 0.0,
+      "field_accuracy": 1.0,
+      "field_details": {
+        "appointment_date": {
+          "expected": "7 สิงหาคม 2569",
+          "predicted": "7 สิงหาคม 2569",
+          "correct": true
+        },
+        "appointment_time": {
+          "expected": "08:30 น",
+          "predicted": "08:30 น",
+          "correct": true
+        },
+        "preparation_instruction": {
+          "expected": "งดอาหารและงดน้ำ หลังเวลา 24.00 น. (หลังเที่ยงคืน)",
+          "predicted": "งดอาหารและงดน้ำ หลังเวลา 24.00 น. (หลังเที่ยงคืน)",
+          "correct": true
+        }
+      }
+    },
+    {
+      "image_path": "data/test_images/M1.jpg",
+      "document_type": "MedicineLabel",
+      "predicted_document_type": "MedicineLabel",
+      "cer": 0.0,
+      "field_accuracy": 1.0,
+      "field_details": {
+        "medicine_name": {
+          "expected": "Paracetamol TAB 500 MG (MYMOL)",
+          "predicted": "Paracetamol TAB 500 MG (MYMOL)",
+          "correct": true
+        },
+        "usage_instruction": {
+          "expected": "รับประทานครั้งละ 1 เม็ด ทุก 4-6 ชั่วโมง เวลามีไข้ หรือมีอาการปวดหัว",
+          "predicted": "รับประทานครั้งละ 1 เม็ด ทุก 4-6 ชั่วโมง เวลามีไข้ หรือมีอาการปวดหัว",
+          "correct": true
+        }
+      }
+    }
+  ]
+}
