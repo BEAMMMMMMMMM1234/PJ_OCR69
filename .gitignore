@@ -2,6 +2,7 @@
 # Python
 # ======================
 __pycache__/
+*.pyc
 *.py[cod]
 *.so
 
@@ -30,11 +31,15 @@ venv/
 # Debug Files
 # ======================
 debug/
+runtime/debug/
 
 # ======================
 # Output Files
 # ======================
 outputs/
+runtime/outputs/
+runtime/final_output/
+runtime/logs/
 
 # ======================
 # VS Code
@@ -45,3 +50,17 @@ outputs/
 # Logs
 # ======================
 *.log
+
+# ======================
+# Evaluation Outputs
+# ======================
+evaluation/*/predictions/
+evaluation/*/reports/
+evaluation/visual_dashboard/
+evaluation/visual_report/
+evaluation/summary_report.json
+evaluation/evaluation_report.json
+evaluation/dataset_validation_report.json
+evaluation/report.json
+
+
