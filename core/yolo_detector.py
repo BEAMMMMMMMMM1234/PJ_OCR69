@@ -20,7 +20,7 @@ class YoloDetector:
     ) -> None:
         self.project_root = PROJECT_ROOT
         self.model_path = model_path or (self.project_root / "models" / "yolo" / "best.pt")
-        self.debug_dir = debug_dir or (self.project_root / "debug" / "annotated")
+        self.debug_dir = debug_dir or (self.project_root / "runtime" / "debug" / "annotated")
 
         if not self.model_path.exists():
             raise FileNotFoundError(

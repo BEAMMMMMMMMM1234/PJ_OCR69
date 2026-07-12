@@ -1,0 +1,17 @@
+services:
+  ocr:
+    image: pj_ocr69-ocr:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pj_ocr69-ocr
+    working_dir: /app
+    restart: on-failure
+    environment:
+      PYTHONUNBUFFERED: "1"
+      OLLAMA_HOST: "http://host.docker.internal:11434"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +14,8 @@ os.environ.setdefault("PADDLE_PDX_CACHE_HOME", str(PROJECT_ROOT / ".paddlex"))
 os.environ.setdefault("MPLCONFIGDIR", str(PROJECT_ROOT / ".mplconfig"))
 
 from paddleocr import TextRecognition
+
+LOGGER = logging.getLogger("pj_ocr69.paddle_ocr")
 
 
 def expand_box(
@@ -54,9 +58,16 @@ class PaddleOCRReader:
                 f"ไม่พบโมเดล PaddleOCR ที่ {self.model_dir}. กรุณาตรวจสอบไฟล์ models/paddle/th_PP-OCRv5_mobile_rec/"
             )
 
+        LOGGER.info("Initializing PaddleOCR TextRecognition model: %s", self.model_name)
         self.reader = TextRecognition(
             model_name=self.model_name,
             model_dir=str(self.model_dir),
+            device="cpu",
+            precision="fp32",
+            enable_mkldnn=False,
+            enable_cinn=False,
+            enable_hpi=False,
+            cpu_threads=2,
         )
 
     def read_regions(
@@ -76,6 +87,14 @@ class PaddleOCRReader:
         regions: list[dict[str, Any]] = []
         self.last_errors = []
 
+        num_regions = len(boxes) if boxes is not None else 0
+        LOGGER.info("OCR read_regions called with %s regions", num_regions)
+
+        if num_regions == 0:
+            return regions
+
+        start_time = time.perf_counter()
+
         for box in boxes:
             bbox = box.get("bbox", [0, 0, 0, 0])
             expanded_bbox = expand_box(
@@ -86,6 +105,19 @@ class PaddleOCRReader:
             )
             x1, y1, x2, y2 = expanded_bbox
             roi = image[y1:y2, x1:x2]
+
+            if roi.size == 0:
+                self.last_errors.append("empty_roi")
+                regions.append(
+                    {
+                        "box_id": box.get("box_id"),
+                        "bbox": [int(value) for value in box.get("bbox", [0, 0, 0, 0])],
+                        "ocr_text": "",
+                        "ocr_confidence": 0.0,
+                        "yolo_confidence": round(float(box.get("confidence", 0.0)), 4),
+                    }
+                )
+                continue
 
             ocr_text, ocr_confidence, ocr_error = self._recognize_roi(roi)
             if ocr_error:
@@ -100,14 +132,19 @@ class PaddleOCRReader:
                 }
             )
 
+        elapsed = time.perf_counter() - start_time
+        LOGGER.info("OCR processed %s regions in %.2f seconds", num_regions, elapsed)
         return regions
 
     def _recognize_roi(self, roi: np.ndarray) -> tuple[str, float, str | None]:
-        if roi.size == 0:
+        if roi is None or roi.size == 0:
             return "", 0.0, None
 
         try:
+            start_time = time.perf_counter()
             results = self.reader.predict(roi)
+            elapsed = time.perf_counter() - start_time
+            LOGGER.debug("OCR ROI prediction completed in %.3f seconds", elapsed)
         except Exception as exc:
             return "", 0.0, f"{type(exc).__name__}: {exc}"
 
